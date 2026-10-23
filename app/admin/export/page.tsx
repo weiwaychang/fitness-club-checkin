@@ -1,12 +1,22 @@
+import Link from 'next/link';
+import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { todayTaipei } from '@/lib/time';
 
 export default async function ExportPage() {
   await requireAdmin();
   const year = todayTaipei().slice(0, 4);
+  const { count: pending } = await db().from('v_pending_sessions')
+    .select('*', { count: 'exact', head: true });
   return (
     <>
       <h1>匯出 CSV</h1>
+      {(pending ?? 0) > 0 && (
+        <p className="card warn">
+          還有 {pending} 個待確認場次（過期且 0 人簽到），目前不會計入統計報表。
+          建議先到 <Link href="/admin">總覽</Link> 處理後再匯出。
+        </p>
+      )}
       <p className="muted">檔案為 UTF-8（含 BOM），Excel 可直接開啟；LINE userId 在第一欄，方便 XLOOKUP。</p>
 
       <form className="card" action="/api/admin/export/detail" method="get">

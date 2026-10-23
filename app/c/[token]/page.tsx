@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { getSession, devMockEnabled } from '@/lib/auth';
 import { todayTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
+import { cancelLabel } from '@/lib/labels';
 import LoginGate from '@/components/LoginGate';
 import CheckinButton from '@/components/CheckinButton';
 
@@ -33,7 +34,7 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
 
   let body: React.ReactNode;
   if (todays?.status === 'cancelled') {
-    body = <p className="warn big center">今天的場次已取消{todays.cancel_reason === 'rain' ? '（雨天取消）' : ''}。</p>;
+    body = <p className="warn big center">今天的場次已取消（{cancelLabel(todays.cancel_reason)}）。</p>;
   } else if (todays) {
     const { data: done } = await db().from('checkins').select('id')
       .eq('session_id', todays.id).eq('member_id', me.memberId).maybeSingle();

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { addDays, todayTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
+import { CANCEL_REASONS, cancelLabel } from '@/lib/labels';
 import { addSessions, generateNow, setSessionCancelled } from '../actions';
 
 export default async function SessionsPage() {
@@ -36,13 +37,17 @@ export default async function SessionsPage() {
               <tr key={s.id}>
                 <td>{s.session_date.slice(5)}（{WEEKDAY_LABELS[weekdayOf(s.session_date)].slice(1)}）</td>
                 <td><Link href={`/admin/sessions/${s.id}`}>{s.activities?.name}</Link></td>
-                <td>{s.status === 'cancelled' ? <span className="tag cancel">{s.cancel_reason === 'rain' ? '雨天取消' : '已取消'}</span> : s.checkins?.[0]?.count ?? 0}</td>
+                <td>{s.status === 'cancelled' ? <span className="tag cancel">{cancelLabel(s.cancel_reason)}</span> : s.checkins?.[0]?.count ?? 0}</td>
                 <td>
-                  <form action={setSessionCancelled}>
+                  <form action={setSessionCancelled} className="row">
                     <input type="hidden" name="id" value={s.id} />
                     <input type="hidden" name="cancel" value={String(s.status !== 'cancelled')} />
-                    <input type="hidden" name="reason" value="rain" />
-                    <button className="btn small ghost">{s.status === 'cancelled' ? '恢復' : '雨天取消'}</button>
+                    {s.status !== 'cancelled' && (
+                      <select name="reason" defaultValue="holiday" style={{ width: 'auto' }}>
+                        {Object.entries(CANCEL_REASONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    )}
+                    <button className="btn small ghost">{s.status === 'cancelled' ? '恢復' : '取消'}</button>
                   </form>
                 </td>
               </tr>

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { generateWeeklySessions } from '@/lib/generate';
 import { isValidDate } from '@/lib/time';
+import { CANCEL_REASONS } from '@/lib/labels';
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 
@@ -51,13 +52,24 @@ export async function addSessions(f: FormData) {
 export async function setSessionCancelled(f: FormData) {
   await requireAdmin();
   const cancel = str(f, 'cancel') === 'true';
+  const reason = str(f, 'reason');
   const { error } = await db().from('sessions').update({
     status: cancel ? 'cancelled' : 'scheduled',
-    cancel_reason: cancel ? (str(f, 'reason') || 'rain') : null,
+    cancel_reason: cancel ? (reason in CANCEL_REASONS ? reason : 'other') : null,
   }).eq('id', str(f, 'id'));
   if (error) throw new Error(error.message);
   revalidatePath('/admin/sessions');
   revalidatePath('/admin');
+}
+
+/** 待確認清單：「確實有上課」→ 0 人也照常計入統計，不再提醒。 */
+export async function confirmHeld(f: FormData) {
+  await requireAdmin();
+  const { error } = await db().from('sessions')
+    .update({ held_confirmed: true }).eq('id', str(f, 'id'));
+  if (error) throw new Error(error.message);
+  revalidatePath('/admin');
+  revalidatePath('/admin/export');
 }
 
 export async function generateNow() {
