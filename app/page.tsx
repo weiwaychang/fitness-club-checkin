@@ -17,6 +17,7 @@ export default async function Home() {
         <p><Link className="btn" href="/me">我的簽到紀錄</Link></p>
         {admin && <p><Link className="btn ghost" href="/admin">管理後台</Link></p>}
       </div>
+      <p className="muted center"><Link href="/about">關於本系統與個資說明</Link></p>
     </>
   );
 }

@@ -19,9 +19,23 @@ export async function createActivity(f: FormData) {
   const { error } = await db().from('activities').insert({
     name, kind, category: str(f, 'category') || name, schedule_mode: mode, weekday,
     start_time: str(f, 'start_time') || null, location: str(f, 'location'),
+    description: str(f, 'description'),
   });
   if (error) throw new Error(error.message);
   if (mode === 'weekly') await generateWeeklySessions(4);
+  revalidatePath('/admin/activities');
+}
+
+/** 編輯名稱、說明、時間、地點。排程方式與星期不可改（避免與已產生場次衝突）。 */
+export async function updateActivity(f: FormData) {
+  await requireAdmin();
+  const name = str(f, 'name');
+  if (!name) throw new Error('請輸入名稱');
+  const { error } = await db().from('activities').update({
+    name, description: str(f, 'description'),
+    start_time: str(f, 'start_time') || null, location: str(f, 'location'),
+  }).eq('id', str(f, 'id'));
+  if (error) throw new Error(error.message);
   revalidatePath('/admin/activities');
 }
 

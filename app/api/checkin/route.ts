@@ -3,6 +3,16 @@ import { db } from '@/lib/db';
 import { requireMember, HttpError } from '@/lib/auth';
 import { todayTaipei } from '@/lib/time';
 
+/** 該社員本月（台北時間）已簽到次數，取消場次不計。 */
+async function monthCount(memberId: string, today: string): Promise<number> {
+  const { count } = await db().from('checkins')
+    .select('id, sessions!inner(session_date, status)', { count: 'exact', head: true })
+    .eq('member_id', memberId)
+    .eq('sessions.status', 'scheduled')
+    .gte('sessions.session_date', `${today.slice(0, 7)}-01`);
+  return count ?? 0;
+}
+
 export async function POST(req: Request) {
   try {
     const me = await requireMember();
@@ -25,12 +35,22 @@ export async function POST(req: Request) {
       throw new HttpError(409, '僅限活動當天簽到');
     }
 
-    const { error } = await db().from('checkins').insert({ session_id: s.id, member_id: me.memberId });
+    const { data: ins, error } = await db().from('checkins')
+      .insert({ session_id: s.id, member_id: me.memberId })
+      .select('checked_in_at').single();
     if (error) {
-      if (error.code === '23505') return NextResponse.json({ ok: true, already: true });
-      throw new Error(error.message);
+      if (error.code !== '23505') throw new Error(error.message);
+      const { data: prev } = await db().from('checkins').select('checked_in_at')
+        .eq('session_id', s.id).eq('member_id', me.memberId).maybeSingle();
+      return NextResponse.json({
+        ok: true, already: true,
+        checkedInAt: prev?.checked_in_at, monthCount: await monthCount(me.memberId, todayTaipei(now)),
+      });
     }
-    return NextResponse.json({ ok: true, already: false });
+    return NextResponse.json({
+      ok: true, already: false,
+      checkedInAt: ins.checked_in_at, monthCount: await monthCount(me.memberId, todayTaipei(now)),
+    });
   } catch (e: any) {
     const status = e instanceof HttpError ? e.status : 500;
     return NextResponse.json({ error: status === 500 ? '系統錯誤' : e.message }, { status });
