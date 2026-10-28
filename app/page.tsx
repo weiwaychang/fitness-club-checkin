@@ -1,10 +1,15 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getSession, isAdmin, devMockEnabled } from '@/lib/auth';
 import LoginGate from '@/components/LoginGate';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // liff.line.me/<id>/c/<token> 會被 LINE 轉成「/?liff.state=/c/<token>」，在此轉到實際頁面
+  const state = (await searchParams)['liff.state'];
+  if (typeof state === 'string' && state.startsWith('/') && !state.startsWith('//')) redirect(state);
+
   const me = await getSession();
   if (!me) return <LoginGate devMock={devMockEnabled()} />;
   const admin = await isAdmin(me.lineUserId);
