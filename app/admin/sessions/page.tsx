@@ -10,7 +10,7 @@ export default async function SessionsPage() {
   const today = todayTaipei();
   const { data: acts } = await db().from('activities').select('id, name').eq('is_active', true).order('name');
   const { data } = await db().from('sessions')
-    .select('id, session_date, start_time, status, cancel_reason, activities(name, category), checkins(count)')
+    .select('id, session_date, start_time, status, cancel_reason, topic, activities(name, category), checkins(count)')
     .gte('session_date', addDays(today, -30)).order('session_date', { ascending: false }).limit(300);
 
   return (
@@ -36,7 +36,10 @@ export default async function SessionsPage() {
             {(data ?? []).map((s: any) => (
               <tr key={s.id}>
                 <td>{s.session_date.slice(5)}（{WEEKDAY_LABELS[weekdayOf(s.session_date)].slice(1)}）</td>
-                <td><Link href={`/admin/sessions/${s.id}`}>{s.activities?.name}</Link></td>
+                <td>
+                  <Link href={`/admin/sessions/${s.id}`}>{s.activities?.name}</Link>
+                  <div className="muted">{s.topic ? `主題：${s.topic}` : '設定主題 / 貼文 →'}</div>
+                </td>
                 <td>{s.status === 'cancelled' ? <span className="tag cancel">{cancelLabel(s.cancel_reason)}</span> : s.checkins?.[0]?.count ?? 0}</td>
                 <td>
                   <form action={setSessionCancelled} className="row">

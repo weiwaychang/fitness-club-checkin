@@ -1,15 +1,30 @@
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
-import { formatTaipei } from '@/lib/time';
-import { addCheckin, removeCheckin } from '../../actions';
+import { formatTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
+import CopyButton from '@/components/CopyButton';
+import { addCheckin, removeCheckin, updateSessionTopic } from '../../actions';
 
 export default async function SessionDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
   const { id } = await params;
   const { data: s } = await db().from('sessions')
-    .select('id, session_date, status, activities(name)').eq('id', id).maybeSingle();
+    .select('id, session_date, start_time, status, topic, activities(name, location, start_time, checkin_token)')
+    .eq('id', id).maybeSingle();
   if (!s) notFound();
+
+  const act = (s as any).activities;
+  const liff = process.env.NEXT_PUBLIC_LIFF_ID;
+  const link = liff ? `https://liff.line.me/${liff}/c/${act?.checkin_token}` : `/c/${act?.checkin_token}`;
+  const time = (s.start_time ?? act?.start_time ?? '').slice(0, 5);
+  const post = [
+    `【${act?.name}】${s.session_date.slice(5).replace('-', '/')}（${WEEKDAY_LABELS[weekdayOf(s.session_date)].slice(1)}）${time} 簽到`,
+    s.topic && `本次主題：${s.topic}`,
+    act?.location && `地點：${act.location}`,
+    '👇 活動當天點下方連結簽到',
+    link,
+    '（網址為 liff.line.me 開頭；只會請 LINE 授權顯示名稱，不需要密碼）',
+  ].filter(Boolean).join('\n');
 
   const { data: list } = await db().from('checkins')
     .select('id, checked_in_at, added_by, member_id, members(display_name, line_user_id)')
@@ -21,6 +36,14 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
     <>
       <h1>{(s as any).activities?.name}・{s.session_date}</h1>
       {s.status === 'cancelled' && <p className="warn">此場次已取消，不計入統計。</p>}
+      <form action={updateSessionTopic} className="card">
+        <h2>本次主題</h2>
+        <input type="hidden" name="id" value={id} />
+        <input name="topic" defaultValue={s.topic ?? ''} maxLength={200} placeholder="例：核心肌群強化" />
+        <p><button className="btn small">儲存主題</button></p>
+        <label>本場群組貼文（儲存主題後再複製）</label>
+        <CopyButton text={post} />
+      </form>
       <p>簽到 {list?.length ?? 0} 人</p>
       <div className="card scroll">
         <table>

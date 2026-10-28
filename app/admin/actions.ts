@@ -63,6 +63,16 @@ export async function addSessions(f: FormData) {
   revalidatePath('/admin/sessions');
 }
 
+/** 設定單一場次的「本次主題」，顯示在簽到頁與群組貼文。 */
+export async function updateSessionTopic(f: FormData) {
+  await requireAdmin();
+  const id = str(f, 'id');
+  const { error } = await db().from('sessions').update({ topic: str(f, 'topic').slice(0, 200) }).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/sessions/${id}`);
+  revalidatePath('/admin/sessions');
+}
+
 export async function setSessionCancelled(f: FormData) {
   await requireAdmin();
   const cancel = str(f, 'cancel') === 'true';

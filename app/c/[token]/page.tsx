@@ -40,7 +40,7 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
   const today = todayTaipei();
   // 今天的場次優先；否則找最近的下一場
   const { data: todays } = await db().from('sessions')
-    .select('id, session_date, start_time, status, cancel_reason')
+    .select('*')
     .eq('activity_id', act.id).eq('session_date', today).maybeSingle();
   const { data: next } = todays ? { data: null } : await db().from('sessions')
     .select('id, session_date, start_time, status')
@@ -77,7 +77,8 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
           {todays?.start_time ? ` ${todays.start_time.slice(0, 5)}` : ''}
           {act.location ? `・${act.location}` : ''}
         </p>
-        {act.description ? <p style={{ whiteSpace: 'pre-line' }}>{act.description}</p> : null}
+        {todays?.topic ? <p><strong>本次主題：{todays.topic}</strong></p> : null}
+        {act.description ?<p style={{ whiteSpace: 'pre-line' }}>{act.description}</p> : null}
         <p>{me.name || '社員'}，你好！</p>
         {body}
       </div>
