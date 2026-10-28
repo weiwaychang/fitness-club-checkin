@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { generateWeeklySessions } from '@/lib/generate';
-import { isValidDate } from '@/lib/time';
+import { isValidDate, todayTaipei } from '@/lib/time';
 import { CANCEL_REASONS } from '@/lib/labels';
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
@@ -31,11 +31,19 @@ export async function updateActivity(f: FormData) {
   await requireAdmin();
   const name = str(f, 'name');
   if (!name) throw new Error('請輸入名稱');
+  const id = str(f, 'id');
+  const startTime = str(f, 'start_time') || null;
   const { error } = await db().from('activities').update({
     name, description: str(f, 'description'),
-    start_time: str(f, 'start_time') || null, location: str(f, 'location'),
-  }).eq('id', str(f, 'id'));
+    start_time: startTime, location: str(f, 'location'),
+  }).eq('id', id);
   if (error) throw new Error(error.message);
+
+  // 場次建立時就複製了課程時間，所以儲存時一併同步今天起的所有場次（過去場次不動）
+  const sync = await db().from('sessions').update({ start_time: startTime })
+    .eq('activity_id', id).gte('session_date', todayTaipei());
+  if (sync.error) throw new Error(sync.error.message);
+  revalidatePath('/admin/sessions');
   revalidatePath('/admin/activities');
 }
 
