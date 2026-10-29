@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
-import { addDays, todayTaipei } from '@/lib/time';
+import { addDays, sessionTime, todayTaipei } from '@/lib/time';
 import { CANCEL_REASONS, cancelLabel } from '@/lib/labels';
 import { confirmHeld, setSessionCancelled } from './actions';
 
@@ -9,7 +9,7 @@ export default async function AdminHome() {
   await requireAdmin();
   const today = todayTaipei();
   const { data } = await db().from('sessions')
-    .select('id, session_date, status, cancel_reason, activities(name), checkins(count)')
+    .select('id, session_date, start_time, topic, status, cancel_reason, activities(name, start_time, schedule_mode), checkins(count)')
     .gte('session_date', addDays(today, -14)).lte('session_date', addDays(today, 7))
     .order('session_date', { ascending: false });
   const { count: members } = await db().from('members').select('*', { count: 'exact', head: true });
@@ -58,8 +58,11 @@ export default async function AdminHome() {
           <tbody>
             {(data ?? []).map((s: any) => (
               <tr key={s.id}>
-                <td>{s.session_date}</td>
-                <td><Link href={`/admin/sessions/${s.id}`}>{s.activities?.name}</Link></td>
+                <td>{s.session_date}<div className="muted">{sessionTime(s, s.activities)}</div></td>
+                <td>
+                  <Link href={`/admin/sessions/${s.id}`}>{s.activities?.name}</Link>
+                  {s.topic ? <div className="muted">{s.topic}</div> : null}
+                </td>
                 <td>{s.status === 'cancelled' ? <span className="tag cancel">{cancelLabel(s.cancel_reason)}</span> : s.checkins?.[0]?.count ?? 0}</td>
               </tr>
             ))}

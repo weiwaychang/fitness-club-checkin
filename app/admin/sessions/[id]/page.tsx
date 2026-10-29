@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
-import { formatTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
+import { formatTaipei, sessionTime, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
 import CopyButton from '@/components/CopyButton';
 import PhotoUploader from '@/components/PhotoUploader';
 import { photoUrl } from '@/lib/photos';
@@ -11,14 +11,14 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
   await requireAdmin();
   const { id } = await params;
   const { data: s } = await db().from('sessions')
-    .select('id, session_date, start_time, status, topic, activities(name, location, start_time, checkin_token)')
+    .select('id, session_date, start_time, status, topic, activities(name, location, start_time, schedule_mode, checkin_token)')
     .eq('id', id).maybeSingle();
   if (!s) notFound();
 
   const act = (s as any).activities;
   const liff = process.env.NEXT_PUBLIC_LIFF_ID;
   const link = liff ? `https://liff.line.me/${liff}/c/${act?.checkin_token}` : `/c/${act?.checkin_token}`;
-  const time = (s.start_time ?? act?.start_time ?? '').slice(0, 5);
+  const time = sessionTime(s, act);
   const post = [
     `【${act?.name}】${s.session_date.slice(5).replace('-', '/')}（${WEEKDAY_LABELS[weekdayOf(s.session_date)].slice(1)}）${time} 簽到`,
     s.topic && `本次主題：${s.topic}`,

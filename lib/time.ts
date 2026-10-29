@@ -33,6 +33,18 @@ export function weekdayOf(date: string): number {
 
 export const WEEKDAY_LABELS = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
 
+/**
+ * 場次的開始時間（HH:MM）。每週固定課程一律以課程目前的時間為準（改課程時間後立即生效）；
+ * 手動排定的活動才用場次自己的時間。
+ */
+export function sessionTime(
+  s: { start_time?: string | null },
+  a: { start_time?: string | null; schedule_mode?: string | null } | null | undefined,
+): string {
+  const t = a?.schedule_mode === 'weekly' ? a.start_time : (s.start_time ?? a?.start_time);
+  return t ? t.slice(0, 5) : '';
+}
+
 export function isValidDate(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
 }

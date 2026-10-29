@@ -17,14 +17,23 @@ export async function createActivity(f: FormData) {
   if (!name) throw new Error('請輸入名稱');
   const weekday = mode === 'weekly' ? Number(str(f, 'weekday')) : null;
   if (mode === 'weekly' && !(weekday! >= 0 && weekday! <= 6)) throw new Error('請選擇星期');
-  const { error } = await db().from('activities').insert({
+  const date = str(f, 'session_date');
+  if (date && !isValidDate(date)) throw new Error('日期格式錯誤');
+  const { data: created, error } = await db().from('activities').insert({
     name, kind, category: str(f, 'category') || name, schedule_mode: mode, weekday,
     start_time: str(f, 'start_time') || null, location: str(f, 'location'),
     description: str(f, 'description'),
-  });
+  }).select('id, start_time').single();
   if (error) throw new Error(error.message);
   if (mode === 'weekly') await generateWeeklySessions(4);
+  // 臨時 / 單場活動：建立時直接帶入活動日期，連結馬上可用，不必再到「場次」新增
+  if (mode === 'manual' && date) {
+    const { error: e2 } = await db().from('sessions')
+      .insert({ activity_id: created.id, session_date: date, start_time: created.start_time });
+    if (e2) throw new Error(e2.message);
+  }
   revalidatePath('/admin/activities');
+  revalidatePath('/admin/sessions');
 }
 
 /** 編輯名稱、說明、時間、地點。排程方式與星期不可改（避免與已產生場次衝突）。 */

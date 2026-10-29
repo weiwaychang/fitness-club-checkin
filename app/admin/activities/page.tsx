@@ -78,6 +78,8 @@ export default async function ActivitiesPage() {
         </select>
         <label>每週星期（每週固定時填）</label>
         <select name="weekday">{WEEKDAY_LABELS.map((w, i) => <option key={i} value={i}>{w}</option>)}</select>
+        <label>活動日期（手動排定的單場 / 臨時活動填這個，建立後連結當天就能簽到；每週固定不用填）</label>
+        <input type="date" name="session_date" />
         <label>開始時間</label><input type="time" name="start_time" />
         <label>地點</label><input name="location" />
         <label>課程說明（可留空，顯示在簽到頁與連結預覽）</label>

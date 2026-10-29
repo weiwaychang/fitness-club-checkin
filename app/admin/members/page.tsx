@@ -11,6 +11,9 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
     return qb.range(a, b);
   });
 
+  const { data: adminRows } = await db().from('admins').select('line_user_id');
+  const admins = new Set((adminRows ?? []).map((a) => a.line_user_id));
+
   return (
     <>
       <h1>社員（{rows.length}）</h1>
@@ -24,10 +27,12 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                 <td>{m.display_name}</td>
                 <td className="muted" style={{ wordBreak: 'break-all' }}>{m.line_user_id}</td>
                 <td>
-                  <form action={addAdmin}>
-                    <input type="hidden" name="line_user_id" value={m.line_user_id} />
-                    <button className="btn small ghost">設為管理員</button>
-                  </form>
+                  {admins.has(m.line_user_id) ? <span className="tag">管理員</span> : (
+                    <form action={addAdmin}>
+                      <input type="hidden" name="line_user_id" value={m.line_user_id} />
+                      <button className="btn small ghost">設為管理員</button>
+                    </form>
+                  )}
                 </td>
               </tr>
             ))}

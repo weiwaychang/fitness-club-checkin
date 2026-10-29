@@ -2,9 +2,10 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { db } from '@/lib/db';
 import { getSession, devMockEnabled } from '@/lib/auth';
-import { formatTaipei, todayTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
+import { formatTaipei, sessionTime, todayTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
 import { cancelLabel } from '@/lib/labels';
-import { photoUrl } from '@/lib/photos';
+import { headers } from 'next/headers';
+import { latestPhotoUrl } from '@/lib/photos';
 import LoginGate from '@/components/LoginGate';
 import CheckinButton from '@/components/CheckinButton';
 
@@ -24,11 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   const desc = [when, a.location, String(a.description ?? '').replace(/\s+/g, ' ').slice(0, 80)]
     .filter(Boolean).join('・') || '活動簽到';
   const title = `${a.name}｜簽到`;
-  // 預覽封面圖：這門課最近一張場次照片（表或照片不存在時就不放圖）
-  const { data: ph } = await db().from('session_photos')
-    .select('path, sessions!inner(activity_id)').eq('sessions.activity_id', a.id)
-    .order('created_at', { ascending: false }).limit(1).maybeSingle();
-  const images = ph ? [photoUrl(ph.path)] : undefined;
+  // 預覽封面圖：這門課最近一張場次照片；沒有就用社團 Logo
+  const host = (await headers()).get('host');
+  const images = [(await latestPhotoUrl(a.id)) ?? `https://${host}/logo.jpg`];
   return { title, description: desc, openGraph: { title, description: desc, images } };
 }
 
@@ -74,13 +73,18 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
     body = <p className="center muted">目前沒有已排定的場次。</p>;
   }
 
+  const photo = await latestPhotoUrl(act.id);
+
   return (
     <>
       <h1>{act.name}</h1>
       <div className="card">
+        {photo
+          ? <img src={photo} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 10, display: 'block', marginBottom: 12 }} />
+          : <img src="/logo.jpg" alt="" style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 16, display: 'block', margin: '0 auto 12px' }} />}
         <p className="muted">
           {todays ? fmtDate(todays.session_date) : fmtDate(today)}
-          {todays?.start_time ? ` ${todays.start_time.slice(0, 5)}` : ''}
+          {todays && sessionTime(todays, act) ? ` ${sessionTime(todays, act)}` : ''}
           {act.location ? `・${act.location}` : ''}
         </p>
         {todays?.topic ? <p><strong>本次主題：{todays.topic}</strong></p> : null}
