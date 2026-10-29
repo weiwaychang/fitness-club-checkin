@@ -3,7 +3,9 @@ import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { formatTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
 import CopyButton from '@/components/CopyButton';
-import { addCheckin, removeCheckin, updateSessionTopic } from '../../actions';
+import PhotoUploader from '@/components/PhotoUploader';
+import { photoUrl } from '@/lib/photos';
+import { addCheckin, deletePhoto, removeCheckin, updateSessionTopic } from '../../actions';
 
 export default async function SessionDetail({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
@@ -26,6 +28,10 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
     '（網址為 liff.line.me 開頭；只會請 LINE 授權顯示名稱，不需要密碼）',
   ].filter(Boolean).join('\n');
 
+  // 照片表尚未建立（0005 未執行）時不影響其他功能
+  const { data: photos, error: photoErr } = await db().from('session_photos')
+    .select('id, path, created_at').eq('session_id', id).order('created_at');
+
   const { data: list } = await db().from('checkins')
     .select('id, checked_in_at, added_by, member_id, members(display_name, line_user_id)')
     .eq('session_id', id).order('checked_in_at');
@@ -44,6 +50,28 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
         <label>本場群組貼文（儲存主題後再複製）</label>
         <CopyButton text={post} />
       </form>
+      <div className="card">
+        <h2>活動照片{photos?.length ? `（${photos.length}）` : ''}</h2>
+        {photoErr ? <p className="warn">尚未啟用照片功能（請先執行 0005_session_photos.sql）。</p> : (
+          <>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 10 }}>
+              {(photos ?? []).map((p) => (
+                <form action={deletePhoto} key={p.id} style={{ width: 120 }}>
+                  <input type="hidden" name="id" value={p.id} />
+                  <a href={photoUrl(p.path)} target="_blank" rel="noreferrer">
+                    <img src={photoUrl(p.path)} alt="" loading="lazy"
+                      style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+                  </a>
+                  <div className="muted" style={{ fontSize: '.8rem' }}>{formatTaipei(p.created_at).slice(0, 16)}</div>
+                  <button className="btn small danger">刪除</button>
+                </form>
+              ))}
+            </div>
+            {!photos?.length && <p className="muted">尚無照片。活動結束後可在此補上傳，系統會自動縮小。</p>}
+            <PhotoUploader sessionId={id} />
+          </>
+        )}
+      </div>
       <p>簽到 {list?.length ?? 0} 人</p>
       <div className="card scroll">
         <table>

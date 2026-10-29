@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { getSession, devMockEnabled } from '@/lib/auth';
 import { formatTaipei, todayTaipei, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
 import { cancelLabel } from '@/lib/labels';
+import { photoUrl } from '@/lib/photos';
 import LoginGate from '@/components/LoginGate';
 import CheckinButton from '@/components/CheckinButton';
 
@@ -23,7 +24,12 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   const desc = [when, a.location, String(a.description ?? '').replace(/\s+/g, ' ').slice(0, 80)]
     .filter(Boolean).join('・') || '活動簽到';
   const title = `${a.name}｜簽到`;
-  return { title, description: desc, openGraph: { title, description: desc } };
+  // 預覽封面圖：這門課最近一張場次照片（表或照片不存在時就不放圖）
+  const { data: ph } = await db().from('session_photos')
+    .select('path, sessions!inner(activity_id)').eq('sessions.activity_id', a.id)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const images = ph ? [photoUrl(ph.path)] : undefined;
+  return { title, description: desc, openGraph: { title, description: desc, images } };
 }
 
 export default async function CheckinPage({ params }: { params: Promise<{ token: string }> }) {

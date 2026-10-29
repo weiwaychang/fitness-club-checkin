@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth';
 import { generateWeeklySessions } from '@/lib/generate';
 import { isValidDate, todayTaipei } from '@/lib/time';
 import { CANCEL_REASONS } from '@/lib/labels';
+import { PHOTO_BUCKET } from '@/lib/photos';
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
 
@@ -79,6 +80,16 @@ export async function updateSessionTopic(f: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/sessions/${id}`);
   revalidatePath('/admin/sessions');
+}
+
+export async function deletePhoto(f: FormData) {
+  await requireAdmin();
+  const { data: p } = await db().from('session_photos').select('path, session_id').eq('id', str(f, 'id')).maybeSingle();
+  if (!p) return;
+  await db().storage.from(PHOTO_BUCKET).remove([p.path]);
+  const { error } = await db().from('session_photos').delete().eq('id', str(f, 'id'));
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/sessions/${p.session_id}`);
 }
 
 export async function setSessionCancelled(f: FormData) {
