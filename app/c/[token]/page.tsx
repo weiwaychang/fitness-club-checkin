@@ -8,6 +8,8 @@ import { headers } from 'next/headers';
 import { latestPhotoUrl } from '@/lib/photos';
 import LoginGate from '@/components/LoginGate';
 import CheckinButton from '@/components/CheckinButton';
+import GoalBar from '@/components/GoalBar';
+import { loadGoal } from '@/lib/stats-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +76,7 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
   }
 
   const photo = await latestPhotoUrl(act.id);
+  const goal = await loadGoal(today.slice(0, 7)).catch(() => null);
 
   return (
     <>
@@ -92,6 +95,7 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
         <p>{me.name || '社員'}，你好！</p>
         {body}
       </div>
+      {goal && <GoalBar goal={goal} />}
       <p className="muted center">
         本系統僅記錄 LINE 顯示名稱與簽到時間，供活動統計使用，不會要求密碼或金流資料。{' '}
         <Link href="/about">了解更多</Link>

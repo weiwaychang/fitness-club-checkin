@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { getSession, devMockEnabled } from '@/lib/auth';
 import { formatTaipei } from '@/lib/time';
 import LoginGate from '@/components/LoginGate';
+import { BADGES } from '@/lib/badges';
+import { loadBadges } from '@/lib/stats-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,10 +28,31 @@ export default async function MePage() {
     byAct.set(n, (byAct.get(n) ?? 0) + 1);
   }
 
+  const b = await loadBadges(me.memberId).catch(() => null);
+
   return (
     <>
       <p><Link href="/">← 返回</Link></p>
       <h1>我的簽到紀錄</h1>
+      {b && (
+        <div className="card">
+          <h2>我的徽章（{b.earned.size} / {BADGES.length}）</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+            {BADGES.map((x) => {
+              const on = b.earned.has(x.key);
+              return (
+                <div key={x.key} style={{ opacity: on ? 1 : 0.45 }}>
+                  <p style={{ margin: 0, fontWeight: 500 }}>{x.emoji} {x.name}</p>
+                  <p className="muted" style={{ margin: 0, fontSize: '.8rem' }}>
+                    {on ? '已獲得' : b.nextTier?.key === x.key ? `還差 ${b.nextTier.remaining} 次` : x.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted" style={{ marginBottom: 0 }}>徽章只有你自己看得到。</p>
+        </div>
+      )}
       <div className="card">
         <p>{me.name}</p>
         <p className="muted">你的 LINE userId（認領用）：<br /><code style={{ wordBreak: 'break-all' }}>{me.lineUserId}</code></p>

@@ -3,7 +3,9 @@ import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { addDays, sessionTime, todayTaipei } from '@/lib/time';
 import { CANCEL_REASONS, cancelLabel } from '@/lib/labels';
-import { confirmHeld, setSessionCancelled } from './actions';
+import GoalBar from '@/components/GoalBar';
+import { loadGoal } from '@/lib/stats-server';
+import { confirmHeld, setClubGoal, setSessionCancelled } from './actions';
 
 export default async function AdminHome() {
   await requireAdmin();
@@ -12,6 +14,7 @@ export default async function AdminHome() {
     .select('id, session_date, start_time, topic, status, cancel_reason, activities(name, start_time, schedule_mode), checkins(count)')
     .gte('session_date', addDays(today, -14)).lte('session_date', addDays(today, 7))
     .order('session_date', { ascending: false });
+  const goal = await loadGoal(today.slice(0, 7)).catch(() => null);
   const { count: members } = await db().from('members').select('*', { count: 'exact', head: true });
   const { data: pending, error: pendingErr } = await db().from('v_pending_sessions')
     .select('id, session_date, activity_name').order('session_date', { ascending: false }).limit(100);
@@ -20,6 +23,20 @@ export default async function AdminHome() {
     <>
       <h1>總覽</h1>
       <div className="card"><p>社員（曾登入）：{members ?? 0} 人</p></div>
+
+      {goal ? <GoalBar goal={goal} /> : <p className="muted">本月尚未設定社團目標。</p>}
+      <details className="card">
+        <summary>設定社團目標</summary>
+        <form action={setClubGoal}>
+          <label>月份</label>
+          <input type="month" name="month" defaultValue={today.slice(0, 7)} required />
+          <label>目標人次（0 = 不設定）</label>
+          <input type="number" name="target_checkins" min={0} defaultValue={goal?.targetCheckins ?? 0} />
+          <label>目標參與人數（不重複，0 = 不設定）</label>
+          <input type="number" name="target_members" min={0} defaultValue={goal?.targetMembers ?? 0} />
+          <p><button className="btn small">儲存目標</button></p>
+        </form>
+      </details>
 
       {pendingErr && (
         <p className="card warn">尚未套用資料庫更新 0002（supabase/migrations/0002_session_review.sql），「待確認場次」暫時無法使用。</p>

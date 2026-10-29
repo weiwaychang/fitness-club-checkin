@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireMember, HttpError } from '@/lib/auth';
 import { todayTaipei } from '@/lib/time';
+import { BADGES } from '@/lib/badges';
+import { loadBadges, loadGoal } from '@/lib/stats-server';
 
 /** 該社員本月（台北時間）已簽到次數，取消場次不計。 */
 async function monthCount(memberId: string, today: string): Promise<number> {
@@ -11,6 +13,25 @@ async function monthCount(memberId: string, today: string): Promise<number> {
     .eq('sessions.status', 'scheduled')
     .gte('sessions.session_date', `${today.slice(0, 7)}-01`);
   return count ?? 0;
+}
+
+/** 這次簽到新解鎖的徽章、下一個目標、社團本月目標。任何失敗都不影響簽到本身。 */
+async function extras(memberId: string, sessionId: string, today: string) {
+  try {
+    const [after, before, goal] = await Promise.all([
+      loadBadges(memberId), loadBadges(memberId, sessionId), loadGoal(today.slice(0, 7)),
+    ]);
+    const newBadges = BADGES.filter((b) => after.earned.has(b.key) && !before.earned.has(b.key))
+      .map((b) => ({ emoji: b.emoji, name: b.name, desc: b.desc }));
+    const tier = after.nextTier ? BADGES.find((b) => b.key === after.nextTier!.key)! : null;
+    return {
+      newBadges,
+      nextTier: tier ? { name: tier.name, remaining: after.nextTier!.remaining } : null,
+      goal,
+    };
+  } catch {
+    return {};
+  }
 }
 
 export async function POST(req: Request) {
@@ -50,6 +71,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true, already: false,
       checkedInAt: ins.checked_in_at, monthCount: await monthCount(me.memberId, todayTaipei(now)),
+      ...(await extras(me.memberId, s.id, todayTaipei(now))),
     });
   } catch (e: any) {
     const status = e instanceof HttpError ? e.status : 500;

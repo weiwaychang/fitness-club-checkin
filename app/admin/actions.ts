@@ -91,6 +91,20 @@ export async function updateSessionTopic(f: FormData) {
   revalidatePath('/admin/sessions');
 }
 
+/** 設定某月份的社團共同目標；兩個目標都填 0 視為不設定。 */
+export async function setClubGoal(f: FormData) {
+  await requireAdmin();
+  const month = str(f, 'month');
+  if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('月份格式錯誤');
+  const n = (k: string) => Math.max(0, Math.min(100000, Math.floor(Number(str(f, k)) || 0)));
+  const { error } = await db().from('club_goals').upsert({
+    month, target_checkins: n('target_checkins'), target_members: n('target_members'),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'month' });
+  if (error) throw new Error(error.message);
+  revalidatePath('/admin');
+}
+
 export async function deletePhoto(f: FormData) {
   await requireAdmin();
   const { data: p } = await db().from('session_photos').select('path, session_id').eq('id', str(f, 'id')).maybeSingle();
