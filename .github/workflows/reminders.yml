@@ -16,6 +16,8 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl --fail-with-body -sS --max-time 60 \
-            -H "Authorization: Bearer $CRON_SECRET" \
+          # 只保留英數字與 _-，避免 secret 夾帶換行或中文導致 HTTP 標頭壞掉
+          TOKEN=$(printf '%s' "$CRON_SECRET" | LC_ALL=C tr -cd 'A-Za-z0-9_-')
+          curl --http1.1 --fail-with-body -sS --max-time 60 \
+            -H "Authorization: Bearer $TOKEN" \
             https://fitness-club-checkin.vercel.app/api/cron/reminders
