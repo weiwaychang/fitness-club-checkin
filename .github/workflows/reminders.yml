@@ -1,0 +1,21 @@
+name: class-reminders
+
+# 每 30 分鐘呼叫一次提醒端點（台北時間 05:00–21:59）。
+# 是否「課前 2 小時」由端點自行判斷，重複呼叫不會重複傳送。
+on:
+  schedule:
+    - cron: '*/30 21-23,0-13 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call reminders endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body -sS --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://fitness-club-checkin.vercel.app/api/cron/reminders

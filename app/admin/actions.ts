@@ -3,11 +3,27 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { generateWeeklySessions } from '@/lib/generate';
+import { pushText } from '@/lib/line-push';
 import { isValidDate, todayTaipei } from '@/lib/time';
 import { CANCEL_REASONS } from '@/lib/labels';
 import { PHOTO_BUCKET } from '@/lib/photos';
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
+
+export async function setReminderNotify(f: FormData) {
+  await requireAdmin();
+  const { error } = await db().from('admins')
+    .update({ notify_reminders: str(f, 'notify') === 'true' })
+    .eq('line_user_id', str(f, 'line_user_id'));
+  if (error) throw new Error(error.message);
+  revalidatePath('/admin/admins');
+}
+
+/** 傳 1 則測試訊息給自己（用來確認 Messaging API 設定正確，只用 1 則額度）。 */
+export async function sendTestMessage() {
+  const me = await requireAdmin();
+  await pushText([me.lineUserId], '✅ 測試成功：上課提醒會傳到這裡。');
+}
 
 export async function createActivity(f: FormData) {
   await requireAdmin();
