@@ -12,7 +12,7 @@ export default function About() {
 
         <h2>會收集哪些資料</h2>
         <ul>
-          <li>LINE 顯示名稱與 LINE 使用者識別碼（userId）</li>
+          <li>LINE 顯示名稱、頭像網址與 LINE 使用者識別碼（userId）；頭像只顯示在你自己的畫面與管理員後台</li>
           <li>你簽到的活動、日期與時間</li>
         </ul>
 

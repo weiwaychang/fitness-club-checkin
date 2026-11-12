@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import Avatar from '@/components/Avatar';
 import { addAdmin, removeAdmin, sendTestMessage, setReminderNotify } from '../actions';
 
 export default async function AdminsPage() {
@@ -7,8 +8,9 @@ export default async function AdminsPage() {
   const { data: admins } = await db().from('admins').select('line_user_id, created_at, notify_reminders').order('created_at');
   const ids = (admins ?? []).map((a) => a.line_user_id);
   const notify = new Map((admins ?? []).map((a) => [a.line_user_id, a.notify_reminders]));
-  const { data: members } = await db().from('members').select('line_user_id, display_name').in('line_user_id', ids);
+  const { data: members } = await db().from('members').select('line_user_id, display_name, picture_url').in('line_user_id', ids);
   const names = new Map((members ?? []).map((m) => [m.line_user_id, m.display_name]));
+  const pics = new Map((members ?? []).map((m) => [m.line_user_id, m.picture_url]));
 
   return (
     <>
@@ -17,6 +19,7 @@ export default async function AdminsPage() {
         {ids.map((id) => (
           <div className="row" key={id} style={{ justifyContent: 'space-between', margin: '8px 0' }}>
             <span>
+              <Avatar url={pics.get(id)} name={names.get(id)} size={30} />
               {names.get(id) ?? <span className="muted">（尚未登入過）</span>}
               {id === me.lineUserId && ' ・你'}
               <br /><span className="muted" style={{ wordBreak: 'break-all' }}>{id}</span>

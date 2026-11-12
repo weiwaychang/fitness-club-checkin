@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getSession, devMockEnabled } from '@/lib/auth';
 import { formatTaipei } from '@/lib/time';
 import LoginGate from '@/components/LoginGate';
+import Avatar from '@/components/Avatar';
 import { BADGES } from '@/lib/badges';
 import { loadBadges } from '@/lib/stats-server';
 
@@ -29,6 +30,7 @@ export default async function MePage() {
   }
 
   const b = await loadBadges(me.memberId).catch(() => null);
+  const { data: prof } = await db().from('members').select('picture_url').eq('id', me.memberId).maybeSingle();
 
   return (
     <>
@@ -54,7 +56,7 @@ export default async function MePage() {
         </div>
       )}
       <div className="card">
-        <p>{me.name}</p>
+        <p><Avatar url={prof?.picture_url} name={me.name} size={44} />{me.name}</p>
         <p className="muted">你的 LINE userId（認領用）：<br /><code style={{ wordBreak: 'break-all' }}>{me.lineUserId}</code></p>
         <p>累計 {rows.length} 次</p>
         <p className="muted">{[...byAct].map(([k, v]) => `${k} ${v}`).join('・')}</p>

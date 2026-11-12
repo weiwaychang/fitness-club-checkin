@@ -7,6 +7,7 @@ import { cancelLabel } from '@/lib/labels';
 import { headers } from 'next/headers';
 import { latestPhotoUrl } from '@/lib/photos';
 import LoginGate from '@/components/LoginGate';
+import Avatar from '@/components/Avatar';
 import CheckinButton from '@/components/CheckinButton';
 import GoalBar from '@/components/GoalBar';
 import { loadGoal } from '@/lib/stats-server';
@@ -77,6 +78,7 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
 
   const photo = await latestPhotoUrl(act.id);
   const goal = await loadGoal(today.slice(0, 7)).catch(() => null);
+  const { data: prof } = await db().from('members').select('picture_url').eq('id', me.memberId).maybeSingle();
 
   return (
     <>
@@ -92,12 +94,12 @@ export default async function CheckinPage({ params }: { params: Promise<{ token:
         </p>
         {todays?.topic ? <p><strong>本次主題：{todays.topic}</strong></p> : null}
         {act.description ?<p style={{ whiteSpace: 'pre-line' }}>{act.description}</p> : null}
-        <p>{me.name || '社員'}，你好！</p>
+        <p><Avatar url={prof?.picture_url} name={me.name} size={32} />{me.name || '社員'}，你好！</p>
         {body}
       </div>
       {goal && <GoalBar goal={goal} />}
       <p className="muted center">
-        本系統僅記錄 LINE 顯示名稱與簽到時間，供活動統計使用，不會要求密碼或金流資料。{' '}
+        本系統僅記錄 LINE 顯示名稱、頭像與簽到時間，供活動統計使用，不會要求密碼或金流資料。{' '}
         <Link href="/about">了解更多</Link>
       </p>
     </>

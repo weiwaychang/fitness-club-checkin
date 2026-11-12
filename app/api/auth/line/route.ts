@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { createSession, devMockEnabled } from '@/lib/auth';
+import { verifyIdToken } from '@/lib/line-verify';
 
-async function upsertMember(lineUserId: string, name: string) {
+async function upsertMember(lineUserId: string, name: string, picture: string | null) {
   const { data, error } = await db()
     .from('members')
     .upsert(
-      { line_user_id: lineUserId, display_name: name, last_seen_at: new Date().toISOString() },
+      { line_user_id: lineUserId, display_name: name, picture_url: picture, last_seen_at: new Date().toISOString() },
       { onConflict: 'line_user_id' },
     )
     .select('id, line_user_id, display_name')
@@ -34,16 +35,10 @@ export async function POST(req: Request) {
   }
 
   // 由伺服器向 LINE 驗證 ID token（簽章、過期、audience），不信任前端自報 userId
-  const res = await fetch('https://api.line.me/oauth2/v2.1/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ id_token: idToken, client_id: process.env.LINE_CHANNEL_ID ?? '' }),
-  });
-  if (!res.ok) return NextResponse.json({ error: 'LINE 驗證失敗' }, { status: 401 });
-  const info = await res.json();
-  if (!info.sub) return NextResponse.json({ error: 'LINE 驗證失敗' }, { status: 401 });
+  const info = await verifyIdToken(idToken);
+  if (!info) return NextResponse.json({ error: 'LINE 驗證失敗' }, { status: 401 });
 
-  const m = await upsertMember(info.sub, info.name ?? '');
+  const m = await upsertMember(info.sub, info.name, info.picture);
   await createSession({ memberId: m.id, lineUserId: m.line_user_id, name: m.display_name });
   return NextResponse.json({ ok: true });
 }

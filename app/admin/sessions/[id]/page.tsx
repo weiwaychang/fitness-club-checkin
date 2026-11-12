@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { formatTaipei, sessionTime, WEEKDAY_LABELS, weekdayOf } from '@/lib/time';
 import CopyButton from '@/components/CopyButton';
 import PhotoUploader from '@/components/PhotoUploader';
+import Avatar from '@/components/Avatar';
 import { photoUrl } from '@/lib/photos';
 import { addCheckin, deletePhoto, removeCheckin, updateSessionTopic } from '../../actions';
 
@@ -33,7 +34,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
     .select('id, path, created_at').eq('session_id', id).order('created_at');
 
   const { data: list } = await db().from('checkins')
-    .select('id, checked_in_at, added_by, member_id, members(display_name, line_user_id)')
+    .select('id, checked_in_at, added_by, member_id, members(display_name, line_user_id, picture_url)')
     .eq('session_id', id).order('checked_in_at');
   const present = new Set((list ?? []).map((c: any) => c.member_id));
   const { data: members } = await db().from('members').select('id, display_name').order('display_name').limit(500);
@@ -79,7 +80,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
           <tbody>
             {(list ?? []).map((c: any) => (
               <tr key={c.id}>
-                <td>{c.members?.display_name}{c.added_by ? ' （補簽）' : ''}</td>
+                <td><Avatar url={c.members?.picture_url} name={c.members?.display_name} size={28} />{c.members?.display_name}{c.added_by ? ' （補簽）' : ''}</td>
                 <td>{formatTaipei(c.checked_in_at).slice(11, 16)}</td>
                 <td>
                   <form action={removeCheckin}>

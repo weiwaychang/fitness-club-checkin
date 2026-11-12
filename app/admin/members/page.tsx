@@ -1,12 +1,13 @@
 import { db, fetchAll } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { addAdmin } from '../actions';
+import Avatar from '@/components/Avatar';
 
 export default async function MembersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAdmin();
   const { q = '' } = await searchParams;
   const rows = await fetchAll((a, b) => {
-    let qb = db().from('members').select('line_user_id, display_name, first_seen_at').order('display_name');
+    let qb = db().from('members').select('line_user_id, display_name, picture_url, first_seen_at').order('display_name');
     if (q) qb = qb.ilike('display_name', `%${q.replace(/[%_,()]/g, '')}%`);
     return qb.range(a, b);
   });
@@ -24,7 +25,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
           <tbody>
             {rows.map((m) => (
               <tr key={m.line_user_id}>
-                <td>{m.display_name}</td>
+                <td><Avatar url={m.picture_url} name={m.display_name} size={30} />{m.display_name}</td>
                 <td className="muted" style={{ wordBreak: 'break-all' }}>{m.line_user_id}</td>
                 <td>
                   {admins.has(m.line_user_id) ? <span className="tag">管理員</span> : (

@@ -7,6 +7,21 @@ const timeFmt = new Intl.DateTimeFormat('zh-TW', {
   timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false,
 });
 
+/** 簽到成功後在背景更新 LINE 名稱與頭像；任何失敗都忽略，不影響簽到。 */
+async function refreshProfile() {
+  try {
+    const liff = (await import('@line/liff')).default;
+    await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID! });
+    const idToken = liff.isLoggedIn() ? liff.getIDToken() : null;
+    if (!idToken) return;
+    await fetch('/api/profile/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+  } catch { /* ignore */ }
+}
+
 export default function CheckinButton({ sessionId, title }: { sessionId: string; title: string }) {
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'already' | 'error'>('idle');
   const [err, setErr] = useState('');
@@ -31,6 +46,7 @@ export default function CheckinButton({ sessionId, title }: { sessionId: string;
         newBadges: j.newBadges, nextTier: j.nextTier, goal: j.goal,
       });
       setState(j.already ? 'already' : 'done');
+      refreshProfile();
     } else {
       setErr(j.error ?? '簽到失敗');
       setState('error');
